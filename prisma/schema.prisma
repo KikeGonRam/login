@@ -1,0 +1,161 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  passwordHash  String
+  phone         String?
+  status        UserStatus    @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  profile       UserProfile?
+  roles         UserRole[]
+  systems       UserSystem[]
+  sessions      Session[]
+  refreshTokens RefreshToken[]
+  mfaCodes      MfaCode[]
+  auditLogs     AuditLog[]
+}
+
+enum UserStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  BLOCKED
+  DISABLED
+}
+
+model UserProfile {
+  userId        String   @id
+  firstName     String
+  lastName      String
+  photoUrl      String?
+  birthDate     DateTime
+  hireDate      DateTime
+
+  departmentId  String
+  positionId    String
+
+  user          User       @relation(fields: [userId], references: [id])
+  department    Department @relation(fields: [departmentId], references: [id])
+  position      Position   @relation(fields: [positionId], references: [id])
+}
+
+model Department {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  description String?
+
+  users       UserProfile[]
+}
+
+model Position {
+  id              String        @id @default(uuid())
+  name            String
+  hierarchyLevel  Int
+  description     String?
+
+  users           UserProfile[]
+}
+
+model Role {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  description String?
+
+  users       UserRole[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user   User @relation(fields: [userId], references: [id])
+  role   Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}
+
+model System {
+  id     String @id @default(uuid())
+  code   String @unique
+  name   String
+  active Boolean @default(true)
+
+  users  UserSystem[]
+}
+
+model UserSystem {
+  userId   String
+  systemId String
+
+  user     User   @relation(fields: [userId], references: [id])
+  system   System @relation(fields: [systemId], references: [id])
+
+  @@id([userId, systemId])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  ipAddress  String?
+  userAgent  String?
+  active     Boolean  @default(true)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String
+  revoked    Boolean  @default(false)
+  expiresAt  DateTime
+
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model MfaCode {
+  id         String   @id @default(uuid())
+  userId     String
+  code       String
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  description String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model ActivationToken {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
